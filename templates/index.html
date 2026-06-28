@@ -1,0 +1,213 @@
+{% extends "base.html" %}
+{% block title %}Overview{% endblock %}
+{% block page_title %}Overview{% endblock %}
+{% block page_sub %}System status and quick actions{% endblock %}
+
+{% block extra_styles %}
+.welcome-banner {
+  background: linear-gradient(135deg, rgba(124,58,237,0.15), rgba(0,229,255,0.08));
+  border: 1px solid rgba(0,229,255,0.15);
+  border-radius: var(--radius);
+  padding: 28px 32px;
+  margin-bottom: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: relative;
+  overflow: hidden;
+}
+.welcome-banner::before {
+  content: '📡';
+  position: absolute;
+  right: 32px;
+  font-size: 80px;
+  opacity: 0.08;
+}
+.welcome-title {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 800;
+}
+.welcome-sub { color: var(--text2); font-size: 13px; margin-top: 4px; }
+.step-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 28px;
+}
+.step-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  text-decoration: none;
+  color: var(--text);
+  transition: all 0.2s;
+  display: block;
+  position: relative;
+  overflow: hidden;
+}
+.step-card::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: var(--step-color, var(--accent));
+  transform: scaleX(0);
+  transition: transform 0.2s;
+}
+.step-card:hover { border-color: var(--border2); transform: translateY(-2px); }
+.step-card:hover::after { transform: scaleX(1); }
+.step-num {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text3);
+  margin-bottom: 10px;
+}
+.step-icon { font-size: 24px; margin-bottom: 10px; }
+.step-name {
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+.step-desc { font-size: 12px; color: var(--text2); line-height: 1.5; }
+.step-done {
+  position: absolute;
+  top: 12px; right: 12px;
+  width: 20px; height: 20px;
+  background: var(--green);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px;
+}
+{% endblock %}
+
+{% block content %}
+<div class="welcome-banner">
+  <div>
+    <div class="welcome-title">Welcome back, {{ user }}! 👋</div>
+    <div class="welcome-sub">
+      {% if not has_data %}
+        Get started by uploading your telecom dataset.
+      {% elif not has_model %}
+        Dataset loaded. Train a model to start predicting.
+      {% else %}
+        System ready. All modules operational.
+      {% endif %}
+    </div>
+  </div>
+  <div>
+    {% if not has_data %}
+      <a href="/upload" class="btn btn-primary">Upload Dataset →</a>
+    {% elif not has_model %}
+      <a href="/train" class="btn btn-primary">Train Model →</a>
+    {% else %}
+      <a href="/predict" class="btn btn-primary">Predict Churn →</a>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Stats (if data loaded) -->
+{% if stats %}
+<div class="stat-grid">
+  <div class="stat-card" style="--accent-color: var(--accent)">
+    <div class="stat-label">Total Records</div>
+    <div class="stat-value">{{ stats.total_records | default(0) }}</div>
+    <div class="stat-sub">customers</div>
+  </div>
+  <div class="stat-card" style="--accent-color: var(--red)">
+    <div class="stat-label">Churn Count</div>
+    <div class="stat-value">{{ stats.churn_count | default(0) }}</div>
+    <div class="stat-sub">{{ stats.churn_pct | default(0) }}% churn rate</div>
+  </div>
+  <div class="stat-card" style="--accent-color: var(--accent2)">
+    <div class="stat-label">Features</div>
+    <div class="stat-value">{{ stats.processed_features | default(0) }}</div>
+    <div class="stat-sub">after encoding</div>
+  </div>
+  <div class="stat-card" style="--accent-color: var(--accent3)">
+    <div class="stat-label">Missing Values</div>
+    <div class="stat-value">{{ stats.missing_values | default(0) }}</div>
+    <div class="stat-sub">handled</div>
+  </div>
+</div>
+{% endif %}
+
+<!-- Steps -->
+<div class="step-grid">
+  <a href="/upload" class="step-card" style="--step-color: var(--accent)">
+    {% if has_data %}<div class="step-done">✓</div>{% endif %}
+    <div class="step-num">STEP 01</div>
+    <div class="step-icon">📂</div>
+    <div class="step-name">Upload Data</div>
+    <div class="step-desc">Upload your telecom CSV dataset for analysis</div>
+  </a>
+  <a href="/train" class="step-card" style="--step-color: var(--accent2)">
+    {% if has_model %}<div class="step-done">✓</div>{% endif %}
+    <div class="step-num">STEP 02</div>
+    <div class="step-icon">⚙</div>
+    <div class="step-name">Train Model</div>
+    <div class="step-desc">Select algorithm and train your ML model</div>
+  </a>
+  <a href="/predict" class="step-card" style="--step-color: var(--accent3)">
+    <div class="step-num">STEP 03</div>
+    <div class="step-icon">🎯</div>
+    <div class="step-name">Predict</div>
+    <div class="step-desc">Enter customer data to predict churn probability</div>
+  </a>
+  <a href="/dashboard" class="step-card" style="--step-color: #10b981">
+    <div class="step-num">STEP 04</div>
+    <div class="step-icon">📊</div>
+    <div class="step-name">Dashboard</div>
+    <div class="step-desc">Visualize insights and model performance metrics</div>
+  </a>
+</div>
+
+<!-- Info cards -->
+<div class="grid-2">
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">About This System</div>
+    </div>
+    <p style="font-size:13px;color:var(--text2);line-height:1.8;">
+      ChurnIQ uses machine learning to identify telecom customers at risk of leaving.
+      Upload your data, train a model, and get instant predictions with probability scores.
+      Built with Python, Flask, and scikit-learn.
+    </p>
+    <div class="divider"></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <span class="badge badge-cyan">Logistic Regression</span>
+      <span class="badge badge-cyan">Random Forest</span>
+      <span class="badge badge-cyan">SMOTE</span>
+      <span class="badge badge-cyan">scikit-learn</span>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">System Status</div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:12px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;">
+        <span style="color:var(--text2)">Flask Backend</span>
+        <span class="badge badge-green">● Online</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;">
+        <span style="color:var(--text2)">Dataset Loaded</span>
+        {% if has_data %}<span class="badge badge-green">● Ready</span>
+        {% else %}<span class="badge badge-yellow">○ Pending</span>{% endif %}
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;">
+        <span style="color:var(--text2)">ML Model</span>
+        {% if has_model %}<span class="badge badge-green">● Trained</span>
+        {% else %}<span class="badge badge-yellow">○ Not Trained</span>{% endif %}
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;">
+        <span style="color:var(--text2)">Prediction Engine</span>
+        {% if has_model %}<span class="badge badge-green">● Active</span>
+        {% else %}<span class="badge badge-yellow">○ Waiting</span>{% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

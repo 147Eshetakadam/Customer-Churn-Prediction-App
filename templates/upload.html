@@ -1,0 +1,246 @@
+{% extends "base.html" %}
+{% block title %}Upload Data{% endblock %}
+{% block page_title %}Upload Dataset{% endblock %}
+{% block page_sub %}Import telecom customer CSV data{% endblock %}
+
+{% block extra_styles %}
+.drop-zone {
+  border: 2px dashed var(--border2);
+  border-radius: var(--radius);
+  padding: 56px 24px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: var(--surface);
+}
+.drop-zone.drag-over {
+  border-color: var(--accent);
+  background: rgba(0,229,255,0.04);
+}
+.drop-icon { font-size: 48px; margin-bottom: 16px; }
+.drop-title { font-family: var(--font-display); font-size: 16px; font-weight: 700; margin-bottom: 6px; }
+.drop-sub { font-size: 13px; color: var(--text2); }
+
+.preview-table-wrap {
+  max-height: 320px;
+  overflow: auto;
+}
+
+.col-pill {
+  display: inline-block;
+  padding: 2px 8px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--text2);
+  margin: 2px;
+}
+{% endblock %}
+
+{% block content %}
+<div class="grid-2" style="align-items:start;">
+  <div>
+    <div class="card" style="margin-bottom:20px;">
+      <div class="card-header">
+        <div class="card-title">Upload CSV File</div>
+      </div>
+
+      <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+        <div class="drop-icon" id="dropIcon">📁</div>
+        <div class="drop-title" id="dropTitle">Drop your CSV here</div>
+        <div class="drop-sub" id="dropSub">or click to browse · Max 16MB</div>
+      </div>
+      <input type="file" id="fileInput" accept=".csv" style="display:none">
+
+      <div id="uploadAlert" style="display:none;margin-top:16px;"></div>
+
+      <div style="margin-top:16px;">
+        <button class="btn btn-primary btn-lg" id="uploadBtn" onclick="uploadFile()" disabled>
+          <span id="uploadBtnText">Upload & Process</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">Expected Format</div>
+      </div>
+      <p style="font-size:12.5px;color:var(--text2);line-height:1.8;margin-bottom:12px;">
+        Compatible with Telco Customer Churn dataset format (Kaggle). Required columns:
+      </p>
+      <div>
+        <span class="col-pill">customerID</span>
+        <span class="col-pill">gender</span>
+        <span class="col-pill">tenure</span>
+        <span class="col-pill">MonthlyCharges</span>
+        <span class="col-pill">TotalCharges</span>
+        <span class="col-pill">Contract</span>
+        <span class="col-pill">Churn</span>
+        <span class="col-pill">InternetService</span>
+        <span class="col-pill">PaymentMethod</span>
+        <span class="col-pill">...more</span>
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <!-- Stats after upload -->
+    <div id="statsSection" style="display:{% if stats %}block{% else %}none{% endif %}">
+      <div class="stat-grid" style="grid-template-columns:1fr 1fr;margin-bottom:20px;" id="statsGrid">
+        {% if stats %}
+        <div class="stat-card" style="--accent-color:var(--accent)">
+          <div class="stat-label">Records</div>
+          <div class="stat-value">{{ stats.total_records }}</div>
+        </div>
+        <div class="stat-card" style="--accent-color:var(--red)">
+          <div class="stat-label">Churn Rate</div>
+          <div class="stat-value">{{ stats.churn_pct }}%</div>
+        </div>
+        <div class="stat-card" style="--accent-color:var(--accent2)">
+          <div class="stat-label">Columns</div>
+          <div class="stat-value">{{ stats.total_features }}</div>
+        </div>
+        <div class="stat-card" style="--accent-color:var(--accent3)">
+          <div class="stat-label">Null Values</div>
+          <div class="stat-value">{{ stats.missing_values }}</div>
+        </div>
+        {% endif %}
+      </div>
+
+      <div class="card" id="previewCard">
+        <div class="card-header">
+          <div class="card-title">Data Preview</div>
+          <span class="badge badge-cyan" id="previewCount"></span>
+        </div>
+        <div class="preview-table-wrap table-wrap" id="previewTable">
+          {% if has_data %}
+            <p style="color:var(--text2);font-size:13px;">Data loaded. Re-upload to see preview.</p>
+          {% endif %}
+        </div>
+        <div style="margin-top:16px;">
+          <a href="/train" class="btn btn-primary">Proceed to Train Model →</a>
+        </div>
+      </div>
+    </div>
+
+    {% if not stats %}
+    <div class="card" style="text-align:center;padding:48px 24px;">
+      <div style="font-size:40px;margin-bottom:12px;">📊</div>
+      <div style="font-family:var(--font-display);font-size:15px;font-weight:700;margin-bottom:6px;">
+        No Data Yet
+      </div>
+      <div style="color:var(--text2);font-size:13px;">
+        Upload a CSV file to see dataset statistics and preview
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let selectedFile = null;
+
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file) selectFile(file);
+});
+fileInput.addEventListener('change', e => { if (e.target.files[0]) selectFile(e.target.files[0]); });
+
+function selectFile(file) {
+  selectedFile = file;
+  document.getElementById('dropIcon').textContent = '📄';
+  document.getElementById('dropTitle').textContent = file.name;
+  document.getElementById('dropSub').textContent = (file.size / 1024).toFixed(1) + ' KB · CSV';
+  document.getElementById('uploadBtn').disabled = false;
+}
+
+async function uploadFile() {
+  if (!selectedFile) return;
+  const btn = document.getElementById('uploadBtn');
+  const btnText = document.getElementById('uploadBtnText');
+  btn.disabled = true;
+  btnText.innerHTML = '<span class="spinner"></span> Processing...';
+
+  const formData = new FormData();
+  formData.append('file', selectedFile);
+
+  try {
+    const res = await fetch('/upload', { method: 'POST', body: formData });
+    const data = await res.json();
+
+    if (data.error) {
+      showAlert('error', '⚠ ' + data.error);
+    } else {
+      showAlert('success', '✓ Dataset loaded successfully! ' + data.stats.total_records + ' records processed.');
+      renderStats(data.stats);
+      renderPreview(data.preview, data.columns);
+    }
+  } catch(e) {
+    showAlert('error', '⚠ Upload failed: ' + e.message);
+  }
+
+  btn.disabled = false;
+  btnText.textContent = 'Upload & Process';
+}
+
+function showAlert(type, msg) {
+  const el = document.getElementById('uploadAlert');
+  el.style.display = 'block';
+  el.className = 'alert alert-' + (type === 'error' ? 'error' : 'success');
+  el.textContent = msg;
+}
+
+function renderStats(stats) {
+  document.getElementById('statsSection').style.display = 'block';
+  document.getElementById('statsGrid').innerHTML = `
+    <div class="stat-card" style="--accent-color:var(--accent)">
+      <div class="stat-label">Records</div>
+      <div class="stat-value">${stats.total_records}</div>
+    </div>
+    <div class="stat-card" style="--accent-color:var(--red)">
+      <div class="stat-label">Churn Rate</div>
+      <div class="stat-value">${stats.churn_pct}%</div>
+    </div>
+    <div class="stat-card" style="--accent-color:var(--accent2)">
+      <div class="stat-label">Columns</div>
+      <div class="stat-value">${stats.total_features}</div>
+    </div>
+    <div class="stat-card" style="--accent-color:var(--accent3)">
+      <div class="stat-label">Null Values</div>
+      <div class="stat-value">${stats.missing_values}</div>
+    </div>
+  `;
+}
+
+function renderPreview(rows, columns) {
+  if (!rows.length) return;
+  document.getElementById('previewCount').textContent = 'First 10 rows';
+  const cols = columns.slice(0, 8);
+  let html = '<table><thead><tr>';
+  cols.forEach(c => html += `<th>${c}</th>`);
+  html += '</tr></thead><tbody>';
+  rows.forEach(row => {
+    html += '<tr>';
+    cols.forEach(c => {
+      const v = row[c] ?? '';
+      const isChurn = c === 'Churn';
+      html += `<td>${isChurn ? `<span class="badge ${v==='Yes'||v===1?'badge-red':'badge-green'}">${v}</span>` : v}</td>`;
+    });
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+  document.getElementById('previewTable').innerHTML = html;
+}
+</script>
+{% endblock %}

@@ -1,0 +1,320 @@
+{% extends "base.html" %}
+{% block title %}Predict Churn{% endblock %}
+{% block page_title %}Predict Customer Churn{% endblock %}
+{% block page_sub %}Enter customer details to get churn probability{% endblock %}
+
+{% block extra_styles %}
+.predict-grid {
+  display: grid;
+  grid-template-columns: 1fr 380px;
+  gap: 24px;
+  align-items: start;
+}
+.form-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.result-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 32px 24px;
+  text-align: center;
+  position: sticky;
+  top: 88px;
+}
+.result-icon { font-size: 56px; margin-bottom: 12px; }
+.result-label {
+  font-family: var(--font-display);
+  font-size: 26px;
+  font-weight: 800;
+  margin-bottom: 8px;
+}
+.result-prob {
+  font-size: 13px;
+  color: var(--text2);
+  margin-bottom: 24px;
+}
+.prob-circle {
+  width: 130px; height: 130px;
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 20px;
+  border: 3px solid var(--result-color, var(--border2));
+  position: relative;
+}
+.prob-val {
+  font-family: var(--font-display);
+  font-size: 32px;
+  font-weight: 800;
+  color: var(--result-color, var(--text));
+}
+.prob-lbl { font-size: 11px; color: var(--text3); font-family: var(--font-mono); }
+.risk-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 16px;
+  border-radius: 100px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 20px;
+}
+.risk-high { background: rgba(239,68,68,0.15); color: #f87171; border: 1px solid rgba(239,68,68,0.2); }
+.risk-medium { background: rgba(245,158,11,0.15); color: #fbbf24; border: 1px solid rgba(245,158,11,0.2); }
+.risk-low { background: rgba(34,197,94,0.15); color: #4ade80; border: 1px solid rgba(34,197,94,0.2); }
+
+.empty-result {
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--text3);
+}
+{% endblock %}
+
+{% block content %}
+{% if not has_model %}
+<div class="alert alert-info" style="margin-bottom:20px;">
+  ⚠ No model trained yet. <a href="/train" style="color:var(--accent)">Train a model first →</a>
+</div>
+{% endif %}
+
+<div class="predict-grid">
+  <!-- Input Form -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">Customer Information</div>
+      <button class="btn btn-sm btn-secondary" onclick="fillSample()">Load Sample</button>
+    </div>
+
+    <div id="formAlert" style="display:none;margin-bottom:16px;"></div>
+
+    <div class="form-grid-2">
+      <div class="form-group">
+        <label class="form-label">Gender</label>
+        <select class="form-control" id="gender">
+          <option value="Female">Female</option>
+          <option value="Male">Male</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Senior Citizen</label>
+        <select class="form-control" id="SeniorCitizen">
+          <option value="0">No</option>
+          <option value="1">Yes</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Partner</label>
+        <select class="form-control" id="Partner">
+          <option value="Yes">Yes</option>
+          <option value="No">No</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Dependents</label>
+        <select class="form-control" id="Dependents">
+          <option value="No">No</option>
+          <option value="Yes">Yes</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Tenure (months)</label>
+        <input type="number" class="form-control" id="tenure" value="12" min="0" max="72">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Monthly Charges ($)</label>
+        <input type="number" class="form-control" id="MonthlyCharges" value="65.50" step="0.01">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Total Charges ($)</label>
+        <input type="number" class="form-control" id="TotalCharges" value="786.00" step="0.01">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Contract Type</label>
+        <select class="form-control" id="Contract">
+          <option value="Month-to-month">Month-to-month</option>
+          <option value="One year">One year</option>
+          <option value="Two year">Two year</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Internet Service</label>
+        <select class="form-control" id="InternetService">
+          <option value="Fiber optic">Fiber optic</option>
+          <option value="DSL">DSL</option>
+          <option value="No">No</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Online Security</label>
+        <select class="form-control" id="OnlineSecurity">
+          <option value="No">No</option>
+          <option value="Yes">Yes</option>
+          <option value="No internet service">No internet service</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Tech Support</label>
+        <select class="form-control" id="TechSupport">
+          <option value="No">No</option>
+          <option value="Yes">Yes</option>
+          <option value="No internet service">No internet service</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Paperless Billing</label>
+        <select class="form-control" id="PaperlessBilling">
+          <option value="Yes">Yes</option>
+          <option value="No">No</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Payment Method</label>
+        <select class="form-control" id="PaymentMethod">
+          <option value="Electronic check">Electronic check</option>
+          <option value="Mailed check">Mailed check</option>
+          <option value="Bank transfer (automatic)">Bank transfer (auto)</option>
+          <option value="Credit card (automatic)">Credit card (auto)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Phone Service</label>
+        <select class="form-control" id="PhoneService">
+          <option value="Yes">Yes</option>
+          <option value="No">No</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Multiple Lines</label>
+        <select class="form-control" id="MultipleLines">
+          <option value="No">No</option>
+          <option value="Yes">Yes</option>
+          <option value="No phone service">No phone service</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Streaming TV</label>
+        <select class="form-control" id="StreamingTV">
+          <option value="No">No</option>
+          <option value="Yes">Yes</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+    <button class="btn btn-primary btn-lg" onclick="predictChurn()" id="predictBtn" {% if not has_model %}disabled{% endif %}>
+      <span id="predictBtnText">→ Predict Churn</span>
+    </button>
+  </div>
+
+  <!-- Result Panel -->
+  <div class="result-panel" id="resultPanel">
+    <div id="emptyResult" class="empty-result">
+      <div style="font-size:40px;margin-bottom:12px;">🎯</div>
+      <div style="font-family:var(--font-display);font-size:14px;font-weight:700;margin-bottom:6px;">Awaiting Input</div>
+      <div style="font-size:12px;">Fill in customer details and click Predict</div>
+    </div>
+    <div id="resultContent" style="display:none"></div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function getFormData() {
+  const ids = ['gender','SeniorCitizen','Partner','Dependents','tenure',
+                'MonthlyCharges','TotalCharges','Contract','InternetService',
+                'OnlineSecurity','TechSupport','PaperlessBilling','PaymentMethod',
+                'PhoneService','MultipleLines','StreamingTV',
+                'OnlineBackup','DeviceProtection','StreamingMovies'];
+  const data = {};
+  ids.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) data[id] = el.value;
+  });
+  return data;
+}
+
+function fillSample() {
+  const samples = {
+    'gender': 'Female', 'SeniorCitizen': '0', 'Partner': 'No',
+    'Dependents': 'No', 'tenure': '2', 'MonthlyCharges': '85.70',
+    'TotalCharges': '171.40', 'Contract': 'Month-to-month',
+    'InternetService': 'Fiber optic', 'OnlineSecurity': 'No',
+    'TechSupport': 'No', 'PaperlessBilling': 'Yes',
+    'PaymentMethod': 'Electronic check', 'PhoneService': 'Yes',
+    'MultipleLines': 'No', 'StreamingTV': 'No'
+  };
+  Object.entries(samples).forEach(([k, v]) => {
+    const el = document.getElementById(k);
+    if (el) el.value = v;
+  });
+}
+
+async function predictChurn() {
+  const btn = document.getElementById('predictBtn');
+  const btnText = document.getElementById('predictBtnText');
+  btn.disabled = true;
+  btnText.innerHTML = '<span class="spinner"></span> Predicting...';
+
+  const data = getFormData();
+
+  try {
+    const res = await fetch('/predict', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(data)
+    });
+    const resp = await res.json();
+
+    if (resp.error) {
+      document.getElementById('formAlert').style.display = 'block';
+      document.getElementById('formAlert').className = 'alert alert-error';
+      document.getElementById('formAlert').textContent = '⚠ ' + resp.error;
+    } else {
+      renderResult(resp.result);
+    }
+  } catch(e) {
+    console.error(e);
+  }
+
+  btn.disabled = false;
+  btnText.textContent = '→ Predict Churn';
+}
+
+function renderResult(r) {
+  document.getElementById('emptyResult').style.display = 'none';
+  const content = document.getElementById('resultContent');
+  content.style.display = 'block';
+
+  const color = r.churn ? '#ef4444' : '#22c55e';
+  const icon = r.churn ? '⚠' : '✓';
+  const riskClass = 'risk-' + r.risk_level.toLowerCase();
+
+  content.innerHTML = `
+    <div class="result-icon">${icon}</div>
+    <div class="result-label" style="color:${color}">${r.label}</div>
+    <div class="result-prob">Prediction Result</div>
+
+    <div class="prob-circle" style="--result-color:${color}">
+      <div class="prob-val" style="color:${color}">${r.probability}%</div>
+      <div class="prob-lbl">CHURN PROB</div>
+    </div>
+
+    <div class="risk-chip ${riskClass}">
+      ${r.risk_level === 'High' ? '🔴' : r.risk_level === 'Medium' ? '🟡' : '🟢'}
+      ${r.risk_level} Risk
+    </div>
+
+    <div class="divider"></div>
+    <div style="font-size:12px;color:var(--text2);line-height:1.8;text-align:left;padding:0 8px;">
+      ${r.churn
+        ? `<strong style="color:#f87171">⚠ At-Risk Customer</strong><br>This customer shows signs of churn. Consider targeted retention offers, proactive outreach, or contract incentives.`
+        : `<strong style="color:#4ade80">✓ Retained Customer</strong><br>This customer is likely to stay. Continue standard service. Monitor for changes in usage patterns.`
+      }
+    </div>
+  `;
+}
+</script>
+{% endblock %}

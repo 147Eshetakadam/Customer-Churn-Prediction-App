@@ -1,0 +1,244 @@
+{% extends "base.html" %}
+{% block title %}Train Model{% endblock %}
+{% block page_title %}Train Model{% endblock %}
+{% block page_sub %}Configure and train ML classification models{% endblock %}
+
+{% block extra_styles %}
+.model-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 18px;
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-bottom: 12px;
+}
+.model-option:hover { border-color: var(--border2); }
+.model-option.selected { border-color: var(--accent); background: rgba(0,229,255,0.04); }
+.model-radio { accent-color: var(--accent); margin-top: 2px; }
+.model-name { font-family: var(--font-display); font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+.model-desc { font-size: 12px; color: var(--text2); line-height: 1.6; }
+.metric-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+.metric-row:last-child { border-bottom: none; }
+.metric-name { font-size: 13px; color: var(--text2); }
+.metric-val {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 800;
+}
+.log-box {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--accent);
+  height: 160px;
+  overflow-y: auto;
+  line-height: 1.8;
+}
+{% endblock %}
+
+{% block content %}
+{% if not has_data %}
+<div class="alert alert-info">
+  ⚠ No dataset loaded. <a href="/upload" style="color:var(--accent)">Upload data first →</a>
+</div>
+{% endif %}
+
+<div class="grid-2" style="align-items:start;">
+  <!-- Config Panel -->
+  <div>
+    <div class="card" style="margin-bottom:20px;">
+      <div class="card-header"><div class="card-title">Algorithm Selection</div></div>
+
+      <div class="model-option selected" id="opt-rf" onclick="selectModel('random_forest')">
+        <input type="radio" name="model" value="random_forest" checked class="model-radio" id="radio-rf">
+        <div>
+          <div class="model-name">🌲 Random Forest</div>
+          <div class="model-desc">Ensemble of decision trees. Handles non-linear patterns well. Best for accuracy. Provides feature importance.</div>
+        </div>
+      </div>
+
+      <div class="model-option" id="opt-lr" onclick="selectModel('logistic_regression')">
+        <input type="radio" name="model" value="logistic_regression" class="model-radio" id="radio-lr">
+        <div>
+          <div class="model-name">📈 Logistic Regression</div>
+          <div class="model-desc">Linear probabilistic classifier. Fast, interpretable, good baseline. Shows feature coefficients.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:20px;">
+      <div class="card-header"><div class="card-title">Parameters</div></div>
+      <div class="form-group">
+        <label class="form-label">Test Split Size</label>
+        <select class="form-control" id="testSize">
+          <option value="0.2" selected>20% test / 80% train</option>
+          <option value="0.25">25% test / 75% train</option>
+          <option value="0.3">30% test / 70% train</option>
+        </select>
+      </div>
+    </div>
+
+    <button class="btn btn-primary btn-lg" onclick="trainModel()" id="trainBtn" {% if not has_data %}disabled{% endif %}>
+      <span id="trainBtnText">⚙ Train Model</span>
+    </button>
+  </div>
+
+  <!-- Results Panel -->
+  <div>
+    <div id="trainingLog" class="card" style="margin-bottom:20px;{% if not metrics %}display:none{% endif %}">
+      <div class="card-header"><div class="card-title">Training Log</div></div>
+      <div class="log-box" id="logBox">
+        {% if metrics %}
+        > Loaded dataset...<br>
+        > Preprocessing complete...<br>
+        > Model: {{ metrics.model_type }}<br>
+        > Train samples: {{ metrics.train_samples }}<br>
+        > Test samples: {{ metrics.test_samples }}<br>
+        > Training complete. ✓<br>
+        {% endif %}
+      </div>
+    </div>
+
+    <div id="resultsPanel" class="card" style="{% if not metrics %}display:none{% endif %}">
+      <div class="card-header">
+        <div class="card-title">Model Performance</div>
+        {% if metrics %}
+        <span class="badge badge-cyan">{{ metrics.model_type | replace('_', ' ') | title }}</span>
+        {% endif %}
+      </div>
+
+      <div id="metricsContent">
+        {% if metrics %}
+        <div class="metric-row">
+          <span class="metric-name">Accuracy</span>
+          <span class="metric-val" style="color:var(--accent)">{{ metrics.accuracy }}%</span>
+        </div>
+        <div class="metric-row">
+          <span class="metric-name">Precision</span>
+          <span class="metric-val" style="color:var(--accent2)">{{ metrics.precision }}%</span>
+        </div>
+        <div class="metric-row">
+          <span class="metric-name">Recall</span>
+          <span class="metric-val" style="color:var(--accent3)">{{ metrics.recall }}%</span>
+        </div>
+        <div class="metric-row">
+          <span class="metric-name">F1 Score</span>
+          <span class="metric-val" style="color:var(--green)">{{ metrics.f1_score }}%</span>
+        </div>
+        <div class="metric-row">
+          <span class="metric-name">ROC-AUC</span>
+          <span class="metric-val" style="color:var(--text)">{{ metrics.roc_auc }}%</span>
+        </div>
+        {% endif %}
+      </div>
+
+      <div class="divider"></div>
+      <a href="/predict" class="btn btn-primary">Use Model for Predictions →</a>
+      <a href="/dashboard" class="btn btn-secondary" style="margin-left:8px;">View Dashboard</a>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function selectModel(val) {
+  document.querySelectorAll('.model-option').forEach(el => el.classList.remove('selected'));
+  document.getElementById('opt-' + (val === 'random_forest' ? 'rf' : 'lr')).classList.add('selected');
+  document.getElementById('radio-' + (val === 'random_forest' ? 'rf' : 'lr')).checked = true;
+}
+
+async function trainModel() {
+  const btn = document.getElementById('trainBtn');
+  const btnText = document.getElementById('trainBtnText');
+  btn.disabled = true;
+  btnText.innerHTML = '<span class="spinner"></span> Training...';
+
+  const modelType = document.querySelector('input[name="model"]:checked').value;
+  const testSize = parseFloat(document.getElementById('testSize').value);
+
+  // Show log
+  document.getElementById('trainingLog').style.display = 'block';
+  const logBox = document.getElementById('logBox');
+  logBox.innerHTML = '> Initializing pipeline...<br>';
+
+  const logMsgs = [
+    '> Loading dataset...',
+    '> Splitting train/test sets...',
+    '> Applying class balancing...',
+    '> Training ' + modelType.replace('_', ' ') + '...',
+    '> Evaluating on test set...',
+    '> Calculating metrics...'
+  ];
+
+  for (let i = 0; i < logMsgs.length; i++) {
+    await new Promise(r => setTimeout(r, 300));
+    logBox.innerHTML += logMsgs[i] + '<br>';
+    logBox.scrollTop = logBox.scrollHeight;
+  }
+
+  try {
+    const res = await fetch('/train', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ model_type: modelType, test_size: testSize })
+    });
+    const data = await res.json();
+
+    if (data.error) {
+      logBox.innerHTML += `> ERROR: ${data.error}<br>`;
+    } else {
+      const m = data.metrics;
+      logBox.innerHTML += `> Model: ${m.model_type}<br>`;
+      logBox.innerHTML += `> Train: ${m.train_samples} | Test: ${m.test_samples}<br>`;
+      logBox.innerHTML += `> Accuracy: ${m.accuracy}%<br>`;
+      logBox.innerHTML += `> Training complete. ✓<br>`;
+      renderMetrics(m);
+    }
+  } catch(e) {
+    logBox.innerHTML += `> ERROR: ${e.message}<br>`;
+  }
+
+  btn.disabled = false;
+  btnText.textContent = '⚙ Train Model';
+}
+
+function renderMetrics(m) {
+  document.getElementById('resultsPanel').style.display = 'block';
+  document.getElementById('metricsContent').innerHTML = `
+    <div class="metric-row">
+      <span class="metric-name">Accuracy</span>
+      <span class="metric-val" style="color:var(--accent)">${m.accuracy}%</span>
+    </div>
+    <div class="metric-row">
+      <span class="metric-name">Precision</span>
+      <span class="metric-val" style="color:var(--accent2)">${m.precision}%</span>
+    </div>
+    <div class="metric-row">
+      <span class="metric-name">Recall</span>
+      <span class="metric-val" style="color:var(--accent3)">${m.recall}%</span>
+    </div>
+    <div class="metric-row">
+      <span class="metric-name">F1 Score</span>
+      <span class="metric-val" style="color:var(--green)">${m.f1_score}%</span>
+    </div>
+    <div class="metric-row">
+      <span class="metric-name">ROC-AUC</span>
+      <span class="metric-val" style="color:var(--text)">${m.roc_auc}%</span>
+    </div>
+  `;
+}
+</script>
+{% endblock %}

@@ -1,0 +1,302 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block page_title %}Analytics Dashboard{% endblock %}
+{% block page_sub %}Model performance and churn insights{% endblock %}
+
+{% block extra_styles %}
+.chart-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+}
+.chart-title {
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text2);
+  margin-bottom: 20px;
+}
+.cm-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  max-width: 240px;
+  margin: 0 auto;
+}
+.cm-cell {
+  padding: 20px 12px;
+  border-radius: 8px;
+  text-align: center;
+}
+.cm-val { font-family: var(--font-display); font-size: 28px; font-weight: 800; }
+.cm-lbl { font-size: 10px; font-family: var(--font-mono); margin-top: 4px; }
+.no-data-placeholder {
+  height: 200px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--text3);
+  font-size: 13px;
+  gap: 8px;
+}
+{% endblock %}
+
+{% block content %}
+{% if not has_data %}
+<div class="alert alert-info" style="margin-bottom:20px;">
+  ⚠ No dataset loaded. <a href="/upload" style="color:var(--accent)">Upload data first →</a>
+</div>
+{% endif %}
+
+<!-- Metric Summary Row -->
+{% if metrics %}
+<div class="stat-grid" style="margin-bottom:24px;">
+  <div class="stat-card" style="--accent-color:var(--accent)">
+    <div class="stat-label">Accuracy</div>
+    <div class="stat-value">{{ metrics.accuracy }}%</div>
+    <div class="stat-sub">{{ metrics.model_type | replace('_', ' ') | title }}</div>
+  </div>
+  <div class="stat-card" style="--accent-color:var(--accent2)">
+    <div class="stat-label">Precision</div>
+    <div class="stat-value">{{ metrics.precision }}%</div>
+    <div class="stat-sub">of churn predictions correct</div>
+  </div>
+  <div class="stat-card" style="--accent-color:var(--accent3)">
+    <div class="stat-label">Recall</div>
+    <div class="stat-value">{{ metrics.recall }}%</div>
+    <div class="stat-sub">churners detected</div>
+  </div>
+  <div class="stat-card" style="--accent-color:var(--green)">
+    <div class="stat-label">F1 Score</div>
+    <div class="stat-value">{{ metrics.f1_score }}%</div>
+    <div class="stat-sub">harmonic mean</div>
+  </div>
+  <div class="stat-card" style="--accent-color:var(--text2)">
+    <div class="stat-label">ROC-AUC</div>
+    <div class="stat-value">{{ metrics.roc_auc }}%</div>
+    <div class="stat-sub">discrimination ability</div>
+  </div>
+</div>
+{% endif %}
+
+<!-- Charts Row 1 -->
+<div class="grid-2" style="margin-bottom:20px;">
+  <div class="chart-card">
+    <div class="chart-title">Churn Distribution</div>
+    <canvas id="churnDistChart" height="200"></canvas>
+  </div>
+  <div class="chart-card">
+    <div class="chart-title">Churn Rate by Tenure</div>
+    <canvas id="tenureChart" height="200"></canvas>
+  </div>
+</div>
+
+<!-- Charts Row 2 -->
+<div class="grid-2" style="margin-bottom:20px;">
+  <div class="chart-card">
+    <div class="chart-title">Feature Importance (Top 10)</div>
+    <canvas id="featImpChart" height="240"></canvas>
+  </div>
+  <div class="chart-card">
+    <div class="chart-title">Monthly Charges — Churn vs Retained</div>
+    <canvas id="chargesChart" height="200"></canvas>
+  </div>
+</div>
+
+<!-- Confusion Matrix -->
+<div class="grid-2">
+  <div class="chart-card">
+    <div class="chart-title">Confusion Matrix</div>
+    <div id="cmDisplay">
+      {% if metrics %}
+      <div class="cm-grid">
+        <div class="cm-cell" style="background:rgba(34,197,94,0.15)">
+          <div class="cm-val" style="color:var(--green)" id="cm-tn">—</div>
+          <div class="cm-lbl" style="color:var(--text3)">True Negative</div>
+        </div>
+        <div class="cm-cell" style="background:rgba(239,68,68,0.1)">
+          <div class="cm-val" style="color:var(--red)" id="cm-fp">—</div>
+          <div class="cm-lbl" style="color:var(--text3)">False Positive</div>
+        </div>
+        <div class="cm-cell" style="background:rgba(239,68,68,0.1)">
+          <div class="cm-val" style="color:var(--red)" id="cm-fn">—</div>
+          <div class="cm-lbl" style="color:var(--text3)">False Negative</div>
+        </div>
+        <div class="cm-cell" style="background:rgba(34,197,94,0.15)">
+          <div class="cm-val" style="color:var(--green)" id="cm-tp">—</div>
+          <div class="cm-lbl" style="color:var(--text3)">True Positive</div>
+        </div>
+      </div>
+      <p style="text-align:center;font-size:11px;color:var(--text3);margin-top:16px;font-family:var(--font-mono);">
+        Rows: Actual · Cols: Predicted
+      </p>
+      {% else %}
+      <div class="no-data-placeholder">
+        <span style="font-size:28px">🎯</span>
+        Train a model to see confusion matrix
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="chart-card">
+    <div class="chart-title">Model Summary</div>
+    {% if metrics %}
+    <div style="font-size:13px;line-height:2;color:var(--text2);">
+      <div style="display:flex;justify-content:space-between;border-bottom:1px solid var(--border);padding:6px 0;">
+        <span>Algorithm</span>
+        <span class="badge badge-cyan">{{ metrics.model_type | replace('_', ' ') | title }}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;border-bottom:1px solid var(--border);padding:6px 0;">
+        <span>Training Samples</span>
+        <span style="color:var(--text)">{{ metrics.train_samples }}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;border-bottom:1px solid var(--border);padding:6px 0;">
+        <span>Testing Samples</span>
+        <span style="color:var(--text)">{{ metrics.test_samples }}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:6px 0;">
+        <span>Random State</span>
+        <span style="color:var(--text);font-family:var(--font-mono)">42</span>
+      </div>
+    </div>
+    <div class="divider"></div>
+    <a href="/predict" class="btn btn-primary btn-sm">→ Predict New Customer</a>
+    {% else %}
+    <div class="no-data-placeholder">
+      <span style="font-size:28px">📈</span>
+      No model trained yet
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const chartsData = {{ charts_json | safe }};
+
+// Default Chart.js config
+Chart.defaults.color = '#8892a4';
+Chart.defaults.borderColor = '#1e2530';
+Chart.defaults.font.family = "'DM Mono', monospace";
+Chart.defaults.font.size = 11;
+
+function makeChart(id, config) {
+  const canvas = document.getElementById(id);
+  if (!canvas) return;
+  new Chart(canvas.getContext('2d'), config);
+}
+
+// 1. Churn Distribution Doughnut
+if (chartsData.churn_dist) {
+  const d = chartsData.churn_dist;
+  makeChart('churnDistChart', {
+    type: 'doughnut',
+    data: {
+      labels: d.labels,
+      datasets: [{ data: d.values, backgroundColor: d.colors, borderWidth: 0, hoverOffset: 8 }]
+    },
+    options: {
+      cutout: '70%',
+      plugins: {
+        legend: { position: 'bottom', labels: { padding: 20, usePointStyle: true } }
+      }
+    }
+  });
+}
+
+// 2. Tenure Churn Rate Bar
+if (chartsData.tenure_churn) {
+  const d = chartsData.tenure_churn;
+  makeChart('tenureChart', {
+    type: 'bar',
+    data: {
+      labels: d.labels,
+      datasets: [{
+        label: 'Churn Rate %',
+        data: d.values,
+        backgroundColor: 'rgba(0,229,255,0.6)',
+        borderColor: '#00e5ff',
+        borderWidth: 1,
+        borderRadius: 4
+      }]
+    },
+    options: {
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { ticks: { callback: v => v + '%' }, grid: { color: '#1e2530' } },
+        x: { grid: { display: false } }
+      }
+    }
+  });
+}
+
+// 3. Feature Importance
+if (chartsData.feature_importance) {
+  const d = chartsData.feature_importance;
+  makeChart('featImpChart', {
+    type: 'bar',
+    data: {
+      labels: d.labels,
+      datasets: [{
+        label: 'Importance',
+        data: d.values,
+        backgroundColor: d.values.map((_, i) =>
+          `hsla(${270 - i * 15}, 70%, 65%, 0.75)`
+        ),
+        borderWidth: 0,
+        borderRadius: 3
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { color: '#1e2530' } },
+        y: { grid: { display: false }, ticks: { font: { size: 10 } } }
+      }
+    }
+  });
+}
+
+// 4. Monthly Charges Bar
+if (chartsData.monthly_charges) {
+  const d = chartsData.monthly_charges;
+  makeChart('chargesChart', {
+    type: 'bar',
+    data: {
+      labels: d.labels,
+      datasets: [{
+        label: 'Avg Monthly Charge',
+        data: d.values,
+        backgroundColor: ['rgba(34,197,94,0.6)', 'rgba(239,68,68,0.6)'],
+        borderColor: ['#22c55e', '#ef4444'],
+        borderWidth: 1,
+        borderRadius: 6
+      }]
+    },
+    options: {
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { ticks: { callback: v => '$' + v }, grid: { color: '#1e2530' } },
+        x: { grid: { display: false } }
+      }
+    }
+  });
+}
+
+// Confusion Matrix values
+if (chartsData.confusion_matrix) {
+  const cm = chartsData.confusion_matrix;
+  ['tn','fp','fn','tp'].forEach(k => {
+    const el = document.getElementById('cm-' + k);
+    if (el) el.textContent = cm[k];
+  });
+}
+</script>
+{% endblock %}
